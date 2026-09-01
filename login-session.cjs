@@ -2,6 +2,14 @@ const fs = require('fs');
 const readline = require('readline');
 const { chromium } = require('playwright');
 
+function findChromium() {
+  const candidates = [process.env.CHROMIUM_PATH, '/usr/bin/chromium', '/usr/bin/chromium-browser'];
+  for (const base of ['/root/.cache/ms-playwright', '/home/ubuntu/.cache/ms-playwright']) {
+    try { for (const dir of fs.readdirSync(base)) if (dir.startsWith('chromium-')) candidates.push(`${base}/${dir}/chrome-linux/chrome`); } catch (_) {}
+  }
+  return candidates.find(p => { try { return p && fs.statSync(p).isFile() && fs.statSync(p).size > 100000; } catch (_) { return false; } });
+}
+
 function ask(question, hidden = false) {
   return new Promise((resolve) => {
     if (!hidden) {
@@ -40,7 +48,7 @@ function ask(question, hidden = false) {
 
   const context = await chromium.launchPersistentContext('/root/algotest-mcp/profile', {
     headless: true,
-    executablePath: '/usr/bin/chromium',
+    executablePath: findChromium(),
     args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
   });
   const page = context.pages()[0] || await context.newPage();

@@ -2,9 +2,23 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { chromium } from 'playwright';
 import { z } from 'zod';
+import fs from 'node:fs';
 
 const PROFILE = process.env.ALGO_PROFILE || '/root/algotest-mcp/profile';
-const CHROMIUM = process.env.CHROMIUM_PATH || '/usr/bin/chromium';
+
+function resolveChromium() {
+  const candidates = [];
+  if (process.env.CHROMIUM_PATH) candidates.push(process.env.CHROMIUM_PATH);
+  candidates.push('/usr/bin/chromium', '/usr/bin/chromium-browser');
+  for (const base of ['/root/.cache/ms-playwright', '/home/ubuntu/.cache/ms-playwright']) {
+    try {
+      for (const dir of fs.readdirSync(base)) {
+        if (dir.startsWith('chromium-')) candidates.push(`${base}/${dir}/chrome-linux/chrome`);
+      }
+    } catch (_) {}
+  }
+  return candidates.find(p => { try { return fs.statSync(p).isFile() && fs.statSync(p).size > 100000; } catch (_) { return false; } });
+}
 let context;
 let page;
 let lastResult = null;
@@ -30,7 +44,7 @@ async function getPage() {
   if (page && !page.isClosed()) return page;
   context = await chromium.launchPersistentContext(PROFILE, {
     headless: true,
-    executablePath: CHROMIUM,
+    executablePath: resolveChromium(),
     args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-features=UseDnsHttpsSvcb'],
     viewport: { width: 1280, height: 900 }
   });
