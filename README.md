@@ -51,13 +51,17 @@ If your installed Claude Code version uses a different MCP command, run `claude 
 
 ## Available tools
 
+`backtest_strategy` is the unified natural-language workflow. It parses a request such as “ETH par last 350 days, 22:00 entry, 07:00 exit, sell ATM call and put, Today expiry,” configures the UI, and returns a preview. It never starts the run unless `confirm: true` is explicitly supplied by Claude Code after user confirmation.
+
 `preview_backtest` configures the Backtester and never presses Start Backtest. `run_backtest` requires `confirm: true`; without confirmation it only returns the configuration preview. `get_results` reads the currently visible result page. `close_browser` closes the browser but preserves the login profile.
 
 ## Example Claude Code request
 
 ```text
-Use preview_backtest for Delta Exchange ETHUSD: intraday, entry 22:00, exit 07:00, sell ATM call and sell ATM put, Today expiry, start 2025-10-16, end 2026-09-01, 1 lot, no stop-loss and no target.
+ETH ki strategy ko last 350 days par backtest karo: Delta Exchange ETHUSD, intraday, entry 22:00 IST, next-day exit 07:00 IST, sell ATM call and sell ATM put, Today expiry, 1 lot, no stop-loss and no target.
 ```
+
+Claude Code should first call `backtest_strategy` with `confirm: false`, show the parsed configuration, and ask for confirmation. Only after you approve should it call the same tool with `confirm: true`.
 
 After reviewing the preview, explicitly ask Claude Code to run it. The tool itself still requires `confirm: true` as a safety guard.
 

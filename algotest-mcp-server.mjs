@@ -142,7 +142,60 @@ async function readResults() {
   return result;
 }
 
-const server = new McpServer({ name: 'algotest-backtester', version: '0.1.0' });
+function formatDate(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function parseStrategyRequest(request) {
+  const t = request.toLowerCase();
+  const times = [...t.matchAll(/\b([01]?\d|2[0-3]):([0-5]\d)\b/g)].map(m => `${m[1].padStart(2, '0')}:${m[2]}`);
+  const dateMatches = [...t.matchAll(/\b(20\d{2}-\d{2}-\d{2})\b/g)].map(m => m[1]);
+  const end = dateMatches[1] || dateMatches[0] || process.env.ALGO_END_DATE || formatDate(new Date());
+  let start = dateMatches[0];
+  const days = t.match(/(?:last|past|पिछले)\s*(\d+)\s*(?:calendar\s*)?days?/i);
+  if (days) {
+    const d = new Date(`${end}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - Number(days[1]) + 1);
+    start = formatDate(d);
+  }
+  if (!start) throw new Error('Start date नहीं मिली। Request में last N days या YYYY-MM-DD dates दें।');
+  if (!t.includes('sell') && !t.includes('बेच')) throw new Error('यह prototype short option legs के लिए है; Sell Call और Sell Put स्पष्ट लिखें।');
+  if (!(t.includes('call') || t.includes('कॉल')) || !(t.includes('put') || t.includes('पुट'))) throw new Error('Call और Put दोनों legs स्पष्ट लिखें।');
+  const underlying = t.includes('btc') || t.includes('बिटकॉ') ? 'BTCUSD' : 'ETHUSD';
+  const expiry = t.includes('tomorrow') || t.includes('अगले दिन') ? 'Tomorrow' : t.includes('weekly') ? 'Weekly' : 'Today';
+  return {
+    underlying,
+    exchange: 'Delta Exchange',
+    entryTime: times[0] || '22:00',
+    exitTime: times[1] || '07:00',
+    startDate: start,
+    endDate: end,
+    expiry,
+    lots: Number((t.match(/(?:lots?|लॉट)\s*(?:is|=|:)?\s*(\d+)/i) || [])[1] || 1)
+  };
+}
+
+const server = new McpServer({ name: 'algotest-backtester', version: '0.2.0' });
+
+server.registerTool('backtest_strategy', {
+  description: 'Accept a natural-language strategy request, configure AlgoTest Backtester, and either return a preview or run it when confirm=true. Never performs live trading.',
+  inputSchema: {
+    request: z.string().min(10),
+    confirm: z.boolean().default(false)
+  }
+}, async ({ request, confirm }) => {
+  try {
+    const parsed = parseStrategyRequest(request);
+    const config = await configure(parsed);
+    if (!confirm) return textResult('Strategy parsed and configured. Confirmation required; Start Backtest was not clicked.', { ok: false, requiresConfirmation: true, parsed, config });
+    const p = await getPage();
+    await p.getByRole('button', { name: /Start Backtest/i }).click();
+    await p.waitForTimeout(12000);
+    return textResult('Backtest completed or returned a platform validation result.', { ok: true, config, result: await readResults() });
+  } catch (e) {
+    return textResult(`Natural-language backtest failed: ${e.message}`, { ok: false });
+  }
+});
 
 server.registerTool('preview_backtest', {
   description: 'Configure AlgoTest Backtester in the local browser profile without starting a backtest. Use this first.',
