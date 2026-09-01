@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.*
+!.env.example
+profile/
+**/profile/
+*.log
+npm-debug.log*
+.DS_Store
+results/
+screenshots/

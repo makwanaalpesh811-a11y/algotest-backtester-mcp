@@ -1,0 +1,17 @@
+{
+  "name": "algotest-backtester-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Private MCP server for controlling the AlgoTest Backtester UI from Claude Code on Termux.",
+  "main": "algotest-mcp-server.mjs",
+  "scripts": {
+    "check": "node --check algotest-mcp-server.mjs",
+    "start": "node algotest-mcp-server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "playwright": "latest",
+    "zod": "latest"
+  }
+}
